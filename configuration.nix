@@ -58,10 +58,21 @@ boot.kernelParams = [
 services.displayManager.plasma-login-manager.enable = true;
 services.desktopManager.plasma6.enable = true;
 
+
   services.xserver.xkb = {
     layout = "at";
     variant = "";
   };
+
+systemd.user.services."kscreen-5k" = {
+  description = "Set 5K mode on login";
+  wantedBy = [ "default.target" ];
+  serviceConfig = {
+    ExecStart = "/run/current-system/sw/bin/kscreen-doctor output.eDP-1.mode.19";
+  };
+};
+
+
 
 # services.kdeconnect.enable = false;
 
@@ -137,6 +148,15 @@ services.desktopManager.plasma6.enable = true;
       kdePackages.kcalc
       lutris
       heroic
+      speechd
+      espeak-ng
+      protontricks
+      winetricks
+      cabextract
+      p7zip
+      unzip
+      wget
+      kdePackages.kscreen
   ];
   };
 programs.fish = {
@@ -146,6 +166,8 @@ programs.fish = {
     fetch --frames 60
   '';
 };
+
+
   # ============================================================
   # FIREFOX
   # ============================================================
@@ -272,8 +294,13 @@ hardware.bluetooth = {
     };
   };
 };
+
+  services.speechd.enable = true;
+
+
 # ============================================================
-# NIXOS VERSION
+# NIXOS VERSION}
 # ============================================================
 
   system.stateVersion = "26.05";
+}
