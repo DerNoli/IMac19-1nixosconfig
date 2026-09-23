@@ -5,32 +5,40 @@
   # BOOT + FIXES
   # ============================================================
 
-boot.loader.systemd-boot.enable = true;
-boot.loader.efi.canTouchEfiVariables = true;
+  boot.loader.systemd-boot.enable = true;
+  boot.loader.efi.canTouchEfiVariables = true;
 
-boot.plymouth.enable = true;
-boot.plymouth.theme = "nixos-bgrt";
-boot.plymouth.themePackages = [ pkgs.nixos-bgrt-plymouth ];
+  boot.plymouth.enable = true;
+  boot.plymouth.theme = "nixos-bgrt";
+  boot.plymouth.themePackages = [ pkgs.nixos-bgrt-plymouth ];
 
-boot.consoleLogLevel = 3;
-boot.initrd.verbose = false;
+  boot.consoleLogLevel = 3;
+  boot.initrd.verbose = false;
 
-boot.kernelParams = [
-"quiet"
-"intel_iommu=on"
-"iommu=pt"
-"pcie_ports=compat"
-"rd.udev.log_level=3"
-"rd.systemd.show_status=auto"
-];
+  boot.kernelParams = [
+    "quiet"
+    "intel_iommu=on"
+    "iommu=pt"
+    "pcie_ports=compat"
+    "rd.udev.log_level=3"
+    "rd.systemd.show_status=auto"
+  ];
 
   # ============================================================
   # NETWORK
   # ============================================================
 
-  networking.hostName = "nixos";
-  networking.networkmanager.enable = true;
-
+networking.networkmanager = {
+  enable = true;
+  plugins = with pkgs; [
+    networkmanager-vpnc
+    # add others if needed, e.g.:
+    # networkmanager-openvpn
+    networkmanager-openconnect
+    # networkmanager-l2tp
+    # networkmanager-strongswan
+  ];
+};
   # ============================================================
   # TIME / LOCALE
   # ============================================================
@@ -55,33 +63,37 @@ boot.kernelParams = [
   # KDE
   # ============================================================
 
-services.displayManager.plasma-login-manager.enable = true;
-services.desktopManager.plasma6.enable = true;
-
+  services.displayManager.plasma-login-manager.enable = true;
+  services.desktopManager.plasma6.enable = true;
 
   services.xserver.xkb = {
     layout = "at";
     variant = "";
   };
 
-systemd.user.services."kscreen-5k" = {
-  description = "Set 5K mode on login";
-  wantedBy = [ "default.target" ];
-  serviceConfig = {
-    ExecStart = "/run/current-system/sw/bin/kscreen-doctor output.eDP-1.mode.19";
+  systemd.user.services."kscreen-5k" = {
+    description = "Set 5K mode on login";
+    wantedBy = [ "default.target" ];
+    serviceConfig = {
+      ExecStart = "/run/current-system/sw/bin/kscreen-doctor output.eDP-1.mode.19";
+    };
   };
-};
+
+  virtualisation.waydroid.enable = true;
+  virtualisation.waydroid.package = pkgs.waydroid-nftables;
+  networking.nftables.enable = true;
 
 
+nixpkgs.config.permittedInsecurePackages = [
+  "NetworkManager-vpnc-1.4.0"
+];
 
-# services.kdeconnect.enable = false;
 
   # ============================================================
-  # AUDIO
+  # AUDIO (KORREKT FÜR NIXOS 26.05)
   # ============================================================
 
   services.pulseaudio.enable = false;
-
   security.rtkit.enable = true;
 
   services.pipewire = {
@@ -91,6 +103,8 @@ systemd.user.services."kscreen-5k" = {
     alsa.support32Bit = true;
 
     pulse.enable = true;
+
+    wireplumber.enable = true;
   };
 
   # ============================================================
@@ -100,12 +114,25 @@ systemd.user.services."kscreen-5k" = {
   services.printing.enable = true;
 
   # ============================================================
-  # USER APPS & Cusomizations
+  # USER APPS & CUSTOMIZATIONS
   # ============================================================
+
+services.ollama = {
+  enable = true;
+  package = pkgs.ollama-vulkan;
+
+  loadModels = [
+    "qwen3:8b"
+  ];
+};
+
+services.open-webui = {
+  enable = true;
+};
+
 
   users.users.martink = {
     isNormalUser = true;
-
     description = "Martin Knoflach";
 
     extraGroups = [
@@ -123,10 +150,11 @@ systemd.user.services."kscreen-5k" = {
       libreoffice-fresh
       hunspell
       hunspellDicts.de_DE
-      keepassxc   
+      keepassxc
       audacity
+      ollama
       mangohud
-      protonup-qt
+      networkmanager-openconnect
       lutris
       bottles
       heroic
@@ -146,8 +174,6 @@ systemd.user.services."kscreen-5k" = {
       facetimehd-firmware
       facetimehd-calibration
       kdePackages.kcalc
-      lutris
-      heroic
       speechd
       espeak-ng
       protontricks
@@ -157,22 +183,36 @@ systemd.user.services."kscreen-5k" = {
       unzip
       wget
       kdePackages.kscreen
-  ];
+      piper-tts
+      sox
+      wl-clipboard
+      anydesk
+      rustdesk
+      teamviewer
+      signal-desktop
+      openconnect
+      networkmanagerapplet    
+      omnissa-horizon-client
+];
   };
-programs.fish = {
-  enable = true;
 
-  interactiveShellInit = ''
-    fetch --frames 60
-  '';
-};
-
+  programs.fish = {
+    enable = true;
+    interactiveShellInit = ''
+      fetch --frames 60
+    '';
+  };
 
   # ============================================================
   # FIREFOX
   # ============================================================
 
   programs.firefox.enable = true;
+
+
+virtualisation.libvirtd.enable = true;
+programs.virt-manager.enable = true;
+
 
   # ============================================================
   # UNFREE
@@ -188,7 +228,6 @@ programs.fish = {
     (pkgs.stdenvNoCC.mkDerivation {
       pname = "brcm-firmware";
       version = "1";
-
       src = ./firmware/brcm;
 
       installPhase = ''
@@ -198,109 +237,127 @@ programs.fish = {
     })
   ];
 
-
   # ============================================================
   # MOUNT MY DRIVE
   # ============================================================
 
-fileSystems."/home/martink/Datengrab" = {
-  device = "/dev/disk/by-uuid/df76625a-25f9-4926-b441-c110f812ad7b";
-  fsType = "btrfs";
-};
+  fileSystems."/home/martink/Datengrab" = {
+    device = "/dev/disk/by-uuid/df76625a-25f9-4926-b441-c110f812ad7b";
+    fsType = "btrfs";
+  };
 
   # ============================================================
   # GAMING ACTIVATION
   # ============================================================
 
-programs.steam.enable = true;
-programs.steam.gamescopeSession.enable = true;
-programs.gamemode.enable = true;
+  programs.steam.enable = true;
+  programs.steam.gamescopeSession.enable = true;
+  programs.gamemode.enable = true;
 
-environment.systemPackages = with pkgs; [mangohud protonup-qt lutris bottles heroic
-];
+  environment.systemPackages = with pkgs; [
+    mangohud
+    protonup-qt
+    lutris
+    bottles
+    heroic
+  ];
 
   # ============================================================
   # FLATPAK ENABLED
   # ============================================================
 
-services.flatpak.enable = true;
-
-  # ============================================================
-  # DEACTIVATE HIBERNATE AND SLEEP
-  # ============================================================
-
-
-systemd.sleep.settings.Sleep = {
-  AllowHibernation = "no";
-  AllowHybridSleep = "no";
-  AllowSuspend = "no";
-  AllowSuspendThenHibernate = "no";
-};
-
+  services.flatpak.enable = true;
 
 # ============================================================
-# AMD GPU / GRAPHICS
+# DEACTIVATE HIBERNATE AND SLEEP (KORREKT FÜR 26.05)
 # ============================================================
 
-hardware.graphics = {
-  enable = true;
-  enable32Bit = true;
-
-  extraPackages = with pkgs; [
-    mesa.opencl
-  ];
-};
-
-environment.variables = {
-  RUSTICL_ENABLE = "radeonsi";
-};
-
-# ============================================================
-# APPLE BACKLIGHT SENSOR
-# ============================================================
-
-hardware.sensor.iio.enable = true;
-
-# ============================================================
-# nupdate ZUM VOLLSTÄNDIGEN UPDATEN
-# ============================================================
-
-
-nix.settings.experimental-features = [ "nix-command" "flakes" ];
-
-environment.shellAliases = {
-  nupdate = "sudo nix flake update --flake /etc/nixos && sudo nixos-rebuild switch --flake /etc/nixos";
-};
-
-
-hardware.bluetooth = {
-  enable = true;
-  powerOnBoot = true;
-  settings = {
-    General = {
-      # Shows battery charge of connected devices on supported
-      # Bluetooth adapters. Defaults to 'false'.
-      Experimental = true;
-      # When enabled other devices can connect faster to us, however
-      # the tradeoff is increased power consumption. Defaults to
-      # 'false'.
-      FastConnectable = true;
-    };
-    Policy = {
-      # Enable all controllers when they are found. This includes
-      # adapters present on start as well as adapters that are plugged
-      # in later on. Defaults to 'true'.
-      AutoEnable = true;
-    };
+systemd.sleep.settings = {
+  Sleep = {
+    AllowSuspend = "no";
+    AllowHibernation = "no";
+    AllowHybridSleep = "no";
+    AllowSuspendThenHibernate = "no";
   };
 };
 
-  services.speechd.enable = true;
+  # ============================================================
+  # AMD GPU / GRAPHICS
+  # ============================================================
+
+  hardware.graphics = {
+    enable = true;
+    enable32Bit = true;
+
+    extraPackages = with pkgs; [
+      mesa.opencl
+    ];
+  };
+
+  environment.variables = {
+    RUSTICL_ENABLE = "radeonsi";
+  };
+
+  # ============================================================
+  # APPLE BACKLIGHT SENSOR
+  # ============================================================
+
+  hardware.sensor.iio.enable = true;
+
+  # ============================================================
+  # NUPDATE
+  # ============================================================
+
+  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+
+  environment.shellAliases = {
+    update = "sudo nix flake update --flake /etc/nixos && sudo nixos-rebuild switch --flake /etc/nixos";
+      vpn = "nmcli connection up \"Neue Verbindung vpn\" --ask";
+      vpn-off = "nmcli connection down \"Neue Verbindung vpn\"";
+
+  # NixOS generations
+  nix-gens = "sudo nix-env --list-generations --profile /nix/var/nix/profiles/system";
+  nix-clean = "sudo nix-env --profile /nix/var/nix/profiles/system --delete-generations +2 && sudo nix-collect-garbage -d";
+  };
 
 
-# ============================================================
-# NIXOS VERSION}
-# ============================================================
+  # ============================================================
+  # BLUETOOTH (KORREKT FÜR NIXOS 26.05)
+  # ============================================================
+
+  hardware.bluetooth = {
+    enable = true;
+    powerOnBoot = true;
+
+    settings = {
+      General = {
+        Experimental = true;
+        FastConnectable = true;
+      };
+      Policy = {
+        AutoEnable = true;
+      };
+    };
+  };
+
+  programs.nix-ld.enable = true;
+
+  boot.kernel.sysctl = {
+    "net.ipv4.ip_forward" = 1;
+    "net.ipv6.conf.all.forwarding" = 1;
+  };
+
+networking.firewall.enable = true;
+
+networking.firewall = {
+  allowedTCPPorts = [ 80 8080 443 ];
+  allowedUDPPortRanges = [ { from = 4000; to = 4007; } ];
+};
+networking.firewall.trustedInterfaces = [ "virbr0" ];
+
+  # ============================================================
+  # NIXOS VERSION
+  # ============================================================
 
   system.stateVersion = "26.05";
 }
