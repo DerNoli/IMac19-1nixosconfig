@@ -28,6 +28,8 @@
       flake = false;
     };
 
+
+
     # ============================================================
     # AFFINITY NIX
     # ============================================================
@@ -46,6 +48,27 @@
   let
 
     system = "x86_64-linux";
+
+
+qwenTTS = pkgs.python3Packages.buildPythonPackage {
+  pname = "qwen3-tts";
+  version = "0.1.2";
+
+  src = pkgs.fetchPypi {
+    pname = "qwen3-tts";
+    version = "0.1.2";
+    sha256 = "e0a0e035889cc88cff8c8f2ccb249246e0e2b3b77135c3e6d720b1fb69885129";
+  };
+
+  propagatedBuildInputs = with pkgs.python3Packages; [
+    numpy
+    soundfile
+    torch
+  ];
+};
+
+
+
 
     # ==========================================================
     # BASE PACKAGE SET
@@ -66,7 +89,7 @@
     # KERNEL
     # ==========================================================
 
-    kernelPackages = pkgs.linuxPackages;
+    kernelPackages = pkgs.linuxPackages_latest;
     kernel = kernelPackages.kernel;
 
     # ==========================================================
@@ -342,9 +365,9 @@
           fi
 
           if [ -z "$GPU_TEMP" ] \
-            && [ -r "$SMC/temp23_input" ]
+            && [ -r "$SMC/temp25_input" ]
           then
-            GPU_TEMP="$SMC/temp23_input"
+            GPU_TEMP="$SMC/temp25_input"
           fi
 
           # ------------------------------------------------------
