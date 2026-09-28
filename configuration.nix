@@ -1,4 +1,5 @@
-{ config, pkgs, ... }:
+{config, pkgs, ... }:
+
 
 {
   # ============================================================
@@ -16,14 +17,16 @@
   boot.initrd.verbose = false;
 
   boot.kernelParams = [
-    "quiet"
     "intel_iommu=on"
     "iommu=pt"
     "pcie_ports=compat"
-    "rd.udev.log_level=3"
-    "rd.systemd.show_status=auto"
+    "amdgpu.dpm=0"
+    "reboot=pci"
+    "psi=1"
+    "quiet"
+    "splash"
+    "loglevel=3"
   ];
-
   # ============================================================
   # NETWORK
   # ============================================================
@@ -149,6 +152,7 @@ services.open-webui = {
       ffmpeg
       libreoffice-fresh
       hunspell
+      bitwarden-desktop
       hunspellDicts.de_DE
       keepassxc
       audacity
@@ -355,9 +359,36 @@ networking.firewall = {
 };
 networking.firewall.trustedInterfaces = [ "virbr0" ];
 
+ # ============================================================
+  # 5k resolution
+  # ============================================================
+
+
+systemd.user.services.set-imac-5k = {
+  description = "Force 5K resolution on iMac 19,1 internal display";
+  wantedBy = [ "graphical-session.target" ];
+  after = [ "graphical-session.target" ];
+  serviceConfig = {
+    Type = "oneshot";
+    ExecStart = "${pkgs.writeShellScript "set-5k-mode" ''
+      # Wait briefly for Wayland/KScreen display server to settle
+      sleep 2
+      ${pkgs.kdePackages.kscreen}/bin/kscreen-doctor output.eDP-1.addCustomMode.5120.2880.60000.full
+      ${pkgs.kdePackages.kscreen}/bin/kscreen-doctor output.eDP-1.mode.5120x2880@60
+    ''}";
+  };
+};
+
+
+
   # ============================================================
   # NIXOS VERSION
   # ============================================================
 
   system.stateVersion = "26.05";
+
+
+
+
 }
+
