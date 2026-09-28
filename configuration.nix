@@ -74,13 +74,6 @@ networking.networkmanager = {
     variant = "";
   };
 
-  systemd.user.services."kscreen-5k" = {
-    description = "Set 5K mode on login";
-    wantedBy = [ "default.target" ];
-    serviceConfig = {
-      ExecStart = "/run/current-system/sw/bin/kscreen-doctor output.eDP-1.mode.19";
-    };
-  };
 
   virtualisation.waydroid.enable = true;
   virtualisation.waydroid.package = pkgs.waydroid-nftables;
@@ -364,21 +357,28 @@ networking.firewall.trustedInterfaces = [ "virbr0" ];
   # ============================================================
 
 
-systemd.user.services.set-imac-5k = {
-  description = "Force 5K resolution on iMac 19,1 internal display";
-  wantedBy = [ "graphical-session.target" ];
-  after = [ "graphical-session.target" ];
+systemd.user.services.kscreen-5k = {
+  description = "Set 5K mode on iMac 19,1 internal display";
+
+  after = [
+    "graphical-session.target"
+  ];
+
+  wants = [
+    "graphical-session.target"
+  ];
+
   serviceConfig = {
     Type = "oneshot";
-    ExecStart = "${pkgs.writeShellScript "set-5k-mode" ''
-      # Wait briefly for Wayland/KScreen display server to settle
-      sleep 2
-      ${pkgs.kdePackages.kscreen}/bin/kscreen-doctor output.eDP-1.addCustomMode.5120.2880.60000.full
-      ${pkgs.kdePackages.kscreen}/bin/kscreen-doctor output.eDP-1.mode.5120x2880@60
-    ''}";
+    ExecStart = "${pkgs.kdePackages.libkscreen}/bin/kscreen-doctor output.eDP-1.5120x2880";
+    Restart = "on-failure";
+    RestartSec = "2s";
   };
-};
 
+  wantedBy = [
+    "graphical-session.target"
+  ];
+};
 
 
   # ============================================================
@@ -391,4 +391,3 @@ systemd.user.services.set-imac-5k = {
 
 
 }
-
